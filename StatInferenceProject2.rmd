@@ -1,0 +1,125 @@
+---
+title: "Impact of Vitamin C Delivery Method on Tooth Growth"
+author: "Jim Callahan"
+date: "October 1, 2015"
+output: pdf_document
+---
+
+### Overview
+The data in this project is an R supplied data set, "Tooth Growth".
+The official description in the R version 3.2.2 help file is:
+
+> The response is the length of odontoblasts (teeth) in each of 10 guinea pigs 
+> at each of three dose levels of Vitamin C (0.5, 1, and 2 mg) with each of 
+> two delivery methods (orange juice or ascorbic acid).
+
+### Data
+The data in this project is an R supplied data set, "Tooth Growth" which can be 
+accessed from the "datasets" package using the data command:
+
+```{r}
+# Access the "datasets" package using the R library command
+# and then the data set itself using the R data command.
+library(datasets)
+data(ToothGrowth)
+
+# Exploratory Data Analysis (EDA)
+# Describe the structure of the data set, the first few rows
+str(ToothGrowth)
+head(ToothGrowth)
+summary(ToothGrowth)
+# Note the help file for the R data set can be accessed by typing
+# help(ToothGrowth) 
+# at the R command line.
+```
+
+The **R** help file also has sample code to produce a graph.
+```{r}
+# Graph Code from R help file
+require(graphics)
+coplot(len ~ dose | supp, data = ToothGrowth, panel = panel.smooth,
+       xlab = "ToothGrowth data: length vs dose, given type of supplement")
+```
+
+The obvious thing to do here is to run a regression with:  
+
+        dose = f(supp, data)  
+
+or an ANOVA, but the instructions are explicit:
+> Only use the techniques from class, even if there's 
+> other approaches worth considering.
+
+From the co-plot we can see that OJ appears to be clearly superior at the ".5 mg" and
+"1.0 mg" dose levels, while at the "2.0 mg" dose level the means appear to be closer,
+but even at 2.0 the Vitamin C observations seem to be more spread out suggesting
+a wider variance. 
+
+The questions then are:
+1. How large are the differences in means?
+2. Are the differences of means statistically significant?
+
+```{r}
+# Create a new variable "dosefactor" coercing dose to a factor
+ToothGrowth$dosefactor <- as.factor(ToothGrowth$dose)
+# Create a table showing how many observations we have at each level
+# of supp and dosefactor
+     ToothCount <- table(ToothGrowth$supp, ToothGrowth$dosefactor)
+     ToothCount
+
+```
+Although we could compute a mean for all of the "VC" observations
+and another mean for all of the "OJ" observations and compare the two, the
+procedure is suspect since we know there were different treatment levels
+and from the graph alone we can see there was likely some impact from
+the treatment levels so these are not "identically distributed" as we would
+want for an IID assumption.
+
+So, we really need to compute six means, one for each combination of the level.
+And then perform three tests, one for each level of dose comparing "OJ" and "VC".
+
+```{r}
+LengthOJat05 <- ToothGrowth$len[ToothGrowth$supp == "OJ" & ToothGrowth$dosefactor == "0.5"]
+LengthOJat10 <- ToothGrowth$len[ToothGrowth$supp == "OJ" & ToothGrowth$dosefactor == "1"]
+LengthOJat20 <- ToothGrowth$len[ToothGrowth$supp == "OJ" & ToothGrowth$dosefactor == "2"]
+
+LengthVCat05 <- ToothGrowth$len[ToothGrowth$supp == "VC" & ToothGrowth$dosefactor == "0.5"]
+LengthVCat10 <- ToothGrowth$len[ToothGrowth$supp == "VC" & ToothGrowth$dosefactor == "1"]
+LengthVCat20 <- ToothGrowth$len[ToothGrowth$supp == "VC" & ToothGrowth$dosefactor == "2"]
+
+t.test(LengthOJat05, LengthVCat05)
+t.test(LengthOJat10, LengthVCat10)
+t.test(LengthOJat20, LengthVCat20)
+
+```
+
+The t-tests confirm there is a statistically significant difference in the means
+at the "0.5 mg" and "1.0 mg" levels, but the the significance disappears at the
+"2.0 mg" level. We can build a table to summarize the results.
+
+```{r}
+tdiff05 <- t.test(LengthOJat05, LengthVCat05)$statistic
+tdiff10 <- t.test(LengthOJat10, LengthVCat10)$statistic
+tdiff20 <- t.test(LengthOJat20, LengthVCat20)$statistic
+
+pdiff05 <- t.test(LengthOJat05, LengthVCat05)$p.value
+pdiff10 <- t.test(LengthOJat10, LengthVCat10)$p.value
+pdiff20 <- t.test(LengthOJat20, LengthVCat20)$p.value
+
+ttest  <- c(tdiff05, tdiff10, tdiff20)
+pvalue <- c(pdiff05, pdiff10, pdiff20)
+interpretation <- ifelse(pvalue <= .05, "significant", "not significant")
+
+results <- cbind(ttest, pvalue, interpretation)
+rownames(results) <- c("0.5 mg", "1.0 mg", "2.0 mg")
+results
+```
+
+We have chosen to claim "significance" for pvalues less than .05 ("pvalue <= .05") 
+or an alpha level of 5%.
+
+### ASSUMPTIONS  
+This is assuming that the variables are IID (Independent and Identially Distributed)
+and follow a normal ("Gaussian") distribution that can be approximated by a Student's T
+distribution.
+  
+ 
